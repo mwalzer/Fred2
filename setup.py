@@ -11,13 +11,15 @@ with open(path.join(here, 'README.rst'), encoding='utf-8') as f:
     readme = f.read()
 
 d2s_dir = 'Fred2/Distance2Self/'
-# helloworld_module = Extension('helloworld',
-#                     define_macros = [('MAJOR_VERSION', '1'),
-#                                      ('MINOR_VERSION', '0')],
-#                     include_dirs = [d2s_dir],
-#                     libraries = ['boost_python'],
-#                     #library_dirs = ['/usr/local/lib'],
-#                     sources = [d2s_dir + 'hw.cpp'])
+helloworld_module = Extension('helloworld',
+                    define_macros = [('MAJOR_VERSION', '1'),
+                                     ('MINOR_VERSION', '0')],
+                    include_dirs = [d2s_dir],
+                    libraries = ['boost_python'],
+                    #library_dirs = ['/usr/local/lib'],
+                    #sources = [d2s_dir + 'hw_boost_native_mix.cpp'])
+                    #sources = [d2s_dir + 'hw_plain.cpp'])
+                    sources = [d2s_dir + 'hw.cpp'])
 d2s_module = Extension('d2s',
                     define_macros = [('MAJOR_VERSION', '1'),
                                      ('MINOR_VERSION', '0')],
@@ -113,8 +115,9 @@ setup(
         ],
     },
 
-    #ext_modules=[helloworld_module],
-    ext_modules=[d2s_module],
+    #ext_modules=[d2s_module],
+    ext_modules=[d2s_module, helloworld_module],
+
 
     # Run-time dependencies. (will be installed by pip when FRED2 is installed)
     install_requires=['pandas', 'pyomo>=4.0', 'biopython', 'svmlight', 'MySQL-python >= 1.2.4'],
