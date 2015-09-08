@@ -50,7 +50,7 @@ class AExternalEpitopePrediction(AEpitopePrediction, AExternal):
                 raise ValueError("Input is not of type Allele")
             allales_string = {conv_a: a for conv_a, a in itertools.izip(self.convert_alleles(alleles), alleles)}
 
-        result = defaultdict(defaultdict)
+        result = defaultdict(dict)
 
         allele_groups = []
         #group alleles in blocks of _MAX_alleles (NetMHC can't deal with more than 80)
@@ -62,13 +62,13 @@ class AExternalEpitopePrediction(AEpitopePrediction, AExternal):
                 c_a = 0
                 allele_groups.append(allele_group)
                 if str(allales_string[a]) not in self.supportedAlleles:
-                    warnings.warn("Allele %s is not supported by %s"%(str(allales_string[a]),self.name))
+                    warnings.warn("Allele %s is not supported by %s"%(str(allales_string[a]), self.name))
                     allele_group = []
                     continue
                 allele_group = [a]
             else:
                 if str(allales_string[a]) not in self.supportedAlleles:
-                    warnings.warn("Allele %s is not supported by %s"%(str(allales_string[a]),self.name))
+                    warnings.warn("Allele %s is not supported by %s"%(str(allales_string[a]), self.name))
                     continue
                 allele_group.append(a)
                 c_a += 1
@@ -105,19 +105,16 @@ class AExternalEpitopePrediction(AEpitopePrediction, AExternal):
                     raise RuntimeError(e)
 
                 res_tmp = self.parse_external_result(tmp_out.name)
-                #print res_tmp
                 for al, ep_dict in res_tmp.iteritems():
                     for p, v in ep_dict.iteritems():
                         result[allales_string[al]][pep_seqs[p]] = v
             os.remove(tmp_file.name)
             tmp_out.close()
             os.remove(tmp_out.name)
-
         if not result:
             raise ValueError("No predictions could be made with " + self.name + " for given input. Check your epitope length and HLA allele combination.")
         df_result = EpitopePredictionResult.from_dict(result)
-        df_result.index = pandas.MultiIndex.from_tuples([tuple((i, self.name)) for i in df_result.index],
-                                                        names=['Seq', 'Method'])
+        df_result.index = pandas.MultiIndex.from_tuples([tuple((i, self.name)) for i in df_result.index],names=['Seq', 'Method'])
         return df_result
 
 
@@ -165,19 +162,21 @@ class NetMHC(AExternalEpitopePrediction):
         return self.__supported_length
 
     def parse_external_result(self, _file):
-        result = defaultdict(defaultdict)
-        f = csv.reader(open(_file, "r"), delimiter='\t')
-        f.next()
-        f.next()
-        alleles = map(lambda x: x.split()[0], f.next()[3:])
-        print alleles
-        for l in f:
-            if not l:
-                continue
-            pep_seq = l[2]
-            for ic_50, a in itertools.izip(l[3:], alleles):
-                sc = 1.0 - math.log(float(ic_50), 50000)
-                result[a][pep_seq] = sc if sc > 0.0 else 0.0
+        result = defaultdict(dict)
+        with open(_file, 'r') as f:
+            next(f, None) #skip first line with logging stuff
+            next(f, None) #skip first line with nothing
+            csvr = csv.reader(f, delimiter='\t')
+            alleles = map(lambda x: x.split()[0], csvr.next()[3:])
+            for l in csvr:
+                if not l:
+                    continue
+                pep_seq = l[2]
+                for ic_50, a in itertools.izip(l[3:], alleles):
+                    sc = 1.0 - math.log(float(ic_50), 50000)
+                    result[a][pep_seq] = sc if sc > 0.0 else 0.0
+        if 'Average' in result:
+            result.pop('Average')
         return dict(result)
 
     def which_netMHC(self):
