@@ -314,7 +314,7 @@ class AExternal(object):
         return False
 
     @abc.abstractmethod
-    def get_external_version(self):
+    def get_external_version(self, path=None):
         """
         Returns the external version of the tool by executing
         >{command} --version
@@ -324,9 +324,10 @@ class AExternal(object):
         overwrite the method. The function in the base class can be called
         with super()
 
+        :param: (str) path - optional specification of executable path if deviant from self.__command
         :return: str - The external version of the tool
         """
-        exe = self.command.split()[0]
+        exe = self.command.split()[0] if path is None else path
         try:
             p = subprocess.Popen(exe + ' --version', shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             p.wait() #block the rest
