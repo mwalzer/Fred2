@@ -104,8 +104,9 @@ class AExternalEpitopePrediction(AEpitopePrediction, AExternal):
             peps = list(peps)
             tmp_out = NamedTemporaryFile(delete=False)
             tmp_file = NamedTemporaryFile(delete=False)
-            tmp_file.write("\n".join(">pepe_%i\n%s"%(i, p) for i, p in enumerate(peps))
-                           if self.name.lower() in ["netmhcii","netctlpan"] else "\n".join(peps))
+            self.prepare_peptide_input(peps, tmp_file)
+#            tmp_file.write("\n".join(">pepe_%i\n%s"%(i, p) for i, p in enumerate(peps))
+#                           if self.name.lower() in ["netmhcii","netctlpan"] else "\n".join(peps))
             tmp_file.close()
 
             #generate cmd command
@@ -206,6 +207,9 @@ class NetMHC_3_4(AExternalEpitopePrediction):
 
     def get_external_version(self, path=None):
         return super(NetMHC_3_4, self).get_external_version(path)
+
+    def prepare_peptide_input(self, _peptides, _file):
+        _file.write("\n".join(_peptides))
 
 
 class NetMHCpan_2_4(AExternalEpitopePrediction):
@@ -594,6 +598,9 @@ class NetMHCpan_2_4(AExternalEpitopePrediction):
         #can not be determined netmhcpan does not support --version or similar
         return None
 
+    def prepare_peptide_input(self, _peptides, _file):
+        _file.write("\n".join(_peptides))
+
 
 class NetMHCII_2_2(AExternalEpitopePrediction,AExternal):
     """
@@ -649,6 +656,9 @@ class NetMHCII_2_2(AExternalEpitopePrediction,AExternal):
     def get_external_version(self, path=None):
         #can not be determined netmhcpan does not support --version or similar
         return None
+
+    def prepare_peptide_input(self, _peptides, _file):
+        _file.write("\n".join(">pepe_%i\n%s"%(i, p) for i, p in enumerate(_peptides)))
 
 
 class NetMHCIIpan_3_0(AExternalEpitopePrediction,AExternal):
@@ -794,6 +804,9 @@ class NetMHCIIpan_3_0(AExternalEpitopePrediction,AExternal):
     def get_external_version(self, path=None):
         #can't be determined method does not support --version or similar
         return None
+
+    def prepare_peptide_input(self, _peptides, _file):
+        _file.write("\n".join(_peptides))
 
 
 class PickPocket_1_1(AExternalEpitopePrediction):
@@ -1145,6 +1158,9 @@ class PickPocket_1_1(AExternalEpitopePrediction):
     def get_external_version(self, path=None):
         #Undertermined pickpocket does not support --version or something similar
         return None
+
+    def prepare_peptide_input(self, _peptides, _file):
+        _file.write("\n".join(_peptides))
 
 
 class NetCTLpan_1_1(AExternalEpitopePrediction, AExternal):
@@ -1532,3 +1548,6 @@ class NetCTLpan_1_1(AExternalEpitopePrediction, AExternal):
     def get_external_version(self, path=None):
         #Undertermined pickpocket does not support --version or something similar
         return None
+
+    def prepare_peptide_input(self, _peptides, _file):
+        _file.write("\n".join(">pepe_%i\n%s"%(i, p) for i, p in enumerate(_peptides)))
