@@ -251,7 +251,6 @@ class MartsAdapter(ADBAdapter):
         # (1674, 1688)
         if str(start) + str(stop) + gene_id + transcript_id in self.gene_proxy:
             return self.gene_proxy[str(start) + str(stop) + gene_id + transcript_id]
-
         try:
             x = int(start)
             y = int(stop)
