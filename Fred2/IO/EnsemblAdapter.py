@@ -70,21 +70,30 @@ class EnsemblDB:
             for i in recs.items():
                 ensg = None
                 enst = None
-                ensp = i[0]
+                ensp = None
+                if i[0].startswith('ENSG'):
+                    ensg = i[0]
+                elif i[0].startswith('ENST'):
+                    enst = i[0]
+                elif i[0].startswith('ENSP'):
+                    ensp = i[0]
                 ks = i[1].description.split(' ')
                 for j in ks:
                     if j.startswith('transcript:'):
                         enst = j.strip('transcript:')
                     elif j.startswith('gene:'):
                         ensg = j.strip('gene:')
-                if ensg and enst and ensp:
-                    if ensg not in self.ensg2enst:
-                        self.ensg2enst[ensg] = list()
-                        self.ensg2ensp[ensg] = list()
-                    self.ensg2enst[ensg].append(enst)
-                    self.ensg2ensp[ensg].append(ensp)
-                    self.enst2ensg[enst] = ensg
+                if ensg not in self.ensg2enst:
+                    self.ensg2enst[ensg] = list()
+                    self.ensg2ensp[ensg] = list()
+                self.ensg2enst[ensg].append(enst)
+                self.ensg2ensp[ensg].append(ensp)
+                if enst:
                     self.enst2ensp[enst] = ensp
+                    self.enst2ensg[enst] = ensg
+                else:
+                    warnings.warn("Unparsable filecontents", UserWarning)
+                if ensp:
                     self.ensp2ensg[ensp] = ensg
                     self.ensp2enst[ensp] = enst
                 else:
@@ -119,12 +128,18 @@ class EnsemblDB:
             enst = self.ensp2enst[ensp]
         return {'Ensembl Gene ID': ensg, 'Ensembl Transcript ID': enst, 'Ensembl Protein ID': ensp}
 
-    def map_ensg(self,ensg):
+    def map_ensg(self, ensg):
         warnings.warn('mapping ensg not implemented', NotImplementedError)
 
-    def get_sequence(self,ensp):
+    def get_protein_sequence(self, ensp):
         if ensp in self.collection:
             return self.collection[ensp]
+        else:
+            return None
+
+    def get_transcript_sequence(self, enst):
+        if enst in self.collection:
+            return self.collection[enst]
         else:
             return None
 
