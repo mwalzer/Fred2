@@ -1,15 +1,17 @@
 # This code is part of the Fred2 distribution and governed by its
 # license.  Please see the LICENSE file that should have been included
 # as part of this package.
+
 __author__ = 'walzer'
 
 import warnings
 import bisect
 
 from Bio import SeqIO
+from Fred2.IO.ADBAdapter import ADBAdapter, EAdapterFields
 
 
-class EnsemblDB:
+class EnsemblDB(ADBAdapter):
     def __init__(self, name='fdb'):
         """
         EnsembleDB class to give quick access to entries (fast exact match searches) and convenient ways to produce
@@ -131,15 +133,23 @@ class EnsemblDB:
     def map_ensg(self, ensg):
         warnings.warn('mapping ensg not implemented', NotImplementedError)
 
-    def get_protein_sequence(self, ensp):
-        if ensp in self.collection:
-            return self.collection[ensp]
+    def get_transcript_sequence(self, transcript_id):
+        if transcript_id in self.collection:
+            return str(self.collection[transcript_id].seq)
         else:
             return None
 
-    def get_transcript_sequence(self, enst):
-        if enst in self.collection:
-            return self.collection[enst]
+    def get_product_sequence(self, product_id):
+        if product_id in self.collection:
+            return self.collection[product_id]
+        else:
+            return None
+
+    def get_transcript_information(self, transcript_id):
+        if transcript_id in self.collection:
+            return {EAdapterFields.SEQ: str(self.collection[transcript_id].seq),
+                    EAdapterFields.GENE: self.collection[transcript_id].description.split('gene:')[1].split(' ')[0],
+                    EAdapterFields.STRAND: "-" if int(self.collection[transcript_id].description.split('chromosome:')[1].split(' ')[0].split(':')[-1]) < 0 else "+"}
         else:
             return None
 
