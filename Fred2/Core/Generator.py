@@ -280,7 +280,6 @@ def generate_peptides_from_variants(vars, length, dbadapter):
 #        V A R I A N T S     = = >    T R A N S C R I P T S
 ################################################################################
 
-
 def generate_transcripts_from_variants(vars, dbadapter):
     """
     generates all possible transcript variations of the given variants

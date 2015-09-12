@@ -305,6 +305,7 @@ class AExternal(object):
         :return: bool - Whether or not command could be found in PATH
         """
         exe = self.command.split()[0]
+        print exe
         for try_path in os.environ["PATH"].split(os.pathsep):
             try_path = try_path.strip('"')
             exe_try = os.path.join(try_path, exe).strip()
