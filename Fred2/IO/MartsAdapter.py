@@ -221,7 +221,7 @@ class MartsAdapter(ADBAdapter):
                 + self.biomart_attribute%("strand")  \
                 + self.biomart_tail
 
-            print "Transcript information ",rq_n
+            #print "Transcript information ",rq_n
             tsvreader = csv.DictReader(urllib2.urlopen(self.biomart_url+urllib2.quote(rq_n)).read().splitlines(), dialect='excel-tab')
             tsvselect = [x for x in tsvreader]
             if not tsvselect:
@@ -248,8 +248,8 @@ class MartsAdapter(ADBAdapter):
         # ma = MartsAdapter(biomart="http://grch37.ensembl.org")
         # print ma.get_transcript_position('17953929', '17953943', 'ENSG00000074964', 'ENST00000361221')
         # (1674, 1688)
-        if start + stop + gene_id + transcript_id in self.gene_proxy:
-            return self.gene_proxy[start + stop + gene_id + transcript_id]
+        if str(start) + str(stop) + gene_id + transcript_id in self.gene_proxy:
+            return self.gene_proxy[str(start) + str(stop) + gene_id + transcript_id]
 
         try:
             x = int(start)
@@ -292,13 +292,12 @@ class MartsAdapter(ADBAdapter):
         for e in exons:
             se = int(e["Exon Chr Start (bp)"])
             ee = int(e["Exon Chr End (bp)"])
-            print se, ee + 1
             if x in range(se, ee + 1):
                 if not y in range(se, ee + 1):
                     logging.warning(','.join([str(start), str(stop)]) + ' seems to span more than one exon.')
                     return None
                 else:
-                    self.gene_proxy[start + stop + gene_id + transcript_id] = (x - se + 1 + pos_sum, y - se + 1 + pos_sum)
+                    self.gene_proxy[str(start) + str(stop) + gene_id + transcript_id] = (x - se + 1 + pos_sum, y - se + 1 + pos_sum)
                     return x - se + 1 + pos_sum, y - se + 1 + pos_sum
             else:
                 pos_sum += ee - se + 1
