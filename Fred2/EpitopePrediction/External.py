@@ -47,12 +47,12 @@ class AExternalEpitopePrediction(AEpitopePrediction, AExternal):
         if isinstance(peptides, Peptide):
             pep_seqs = {str(peptides):peptides}
         else:
-            if any(not isinstance(p, Peptide)  for p in peptides):
+            if any(not isinstance(p, Peptide) for p in peptides):
                 raise ValueError("Input is not of type Protein or Peptide")
             pep_seqs = {str(p): p for p in peptides}
 
         if alleles is None:
-            al = [Allele("HLA-"+a) for a in self.supportedAlleles]
+            al = [Allele("HLA-" + a) for a in self.supportedAlleles]
             allales_string = {conv_a: a for conv_a, a in itertools.izip(self.convert_alleles(al), al)}
         else:
             if isinstance(alleles, Allele):
@@ -73,13 +73,13 @@ class AExternalEpitopePrediction(AEpitopePrediction, AExternal):
                 c_a = 0
                 allele_groups.append(allele_group)
                 if str(allales_string[a]) not in self.supportedAlleles:
-                    warnings.warn("Allele %s is not supported by %s"%(str(allales_string[a]),self.name))
+                    warnings.warn("Allele %s is not supported by %s"%(str(allales_string[a]), self.name))
                     allele_group = []
                     continue
                 allele_group = [a]
             else:
                 if str(allales_string[a]) not in self.supportedAlleles:
-                    warnings.warn("Allele %s is not supported by %s"%(str(allales_string[a]),self.name))
+                    warnings.warn("Allele %s is not supported by %s"%(str(allales_string[a]), self.name))
                     continue
                 allele_group.append(a)
                 c_a += 1
@@ -107,7 +107,7 @@ class AExternalEpitopePrediction(AEpitopePrediction, AExternal):
                     stde = None
                     cmd = self.command.format(peptides=tmp_file.name, alleles=",".join(allele_group), out=tmp_out.name)
                     p = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                    p.wait() #block the rest
+                    #p.wait() communicate already waits for the process https://docs.python.org/2.7/library/subprocess.html#subprocess.Popen.communicate
                     stdo, stde = p.communicate()
                     stdr = p.returncode
                     if stdr > 0:
@@ -124,10 +124,11 @@ class AExternalEpitopePrediction(AEpitopePrediction, AExternal):
             os.remove(tmp_out.name)
 
         if not result:
-            raise ValueError("No predictions could be made with " +self.name+" for given input. Check your epitope length and HLA allele combination.")
+            raise ValueError("No predictions could be made with " + self.name +
+                             " for given input. Check your epitope length and HLA allele combination.")
         df_result = EpitopePredictionResult.from_dict(result)
-        df_result.index = pandas.MultiIndex.from_tuples([tuple((i,self.name)) for i in df_result.index],
-                                                        names=['Seq','Method'])
+        df_result.index = pandas.MultiIndex.from_tuples([tuple((i, self.name)) for i in df_result.index],
+                                                        names=['Seq', 'Method'])
         return df_result
 
 
