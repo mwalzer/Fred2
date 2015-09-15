@@ -15,6 +15,7 @@ import logging
 from Fred2.IO.ADBAdapter import ADBAdapter, EAdapterFields
 import MySQLdb
 
+
 class MartsAdapter(ADBAdapter):
     def __init__(self, usr=None, host=None, pwd=None, db=None, biomart=None):
         """
