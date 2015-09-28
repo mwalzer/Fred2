@@ -45,16 +45,19 @@ class MartsAdapter(ADBAdapter):
             #http://grch37.ensembl.org/biomart/
             #http://localhost:9000/biomart/martservice?query=%3C!DOCTYPE%20Query%3E%3CQuery%20client=%22biomartclient%22%20processor=%22TSV%22%20limit=%22-1%22%20header=%221%22%3E%3CDataset%20name=%22hsapiens_gene_ensembl%22%20config=%22gene_ensembl_config%22%3E%3CFilter%20name=%22uniprot_genename%22%20value=%22TP53%22%20filter_list=%22%22/%3E%3CFilter%20name=%22germ_line_variation_source%22%20value=%22dbSNP%22%20filter_list=%22%22/%3E%3CAttribute%20name=%22snp_ensembl_gene_id%22/%3E%3CAttribute%20name=%22snp_chromosome_name%22/%3E%3CAttribute%20name=%22snp_ensembl_transcript_id%22/%3E%3CAttribute%20name=%22snp_start_position%22/%3E%3CAttribute%20name=%22snp_ensembl_peptide_id%22/%3E%3CAttribute%20name=%22snp_end_position%22/%3E%3CAttribute%20name=%22snp_external_gene_name%22/%3E%3CAttribute%20name=%22snp_strand%22/%3E%3CAttribute%20name=%22source_description%22/%3E%3CAttribute%20name=%22germ_line_variation_source%22/%3E%3CAttribute%20name=%22allele%22/%3E%3CAttribute%20name=%22variation_name%22/%3E%3C/Dataset%3E%3C/Query%3E
             #self.biomart_url = """http://134.2.9.124/biomart/martservice?query="""
+
         self.biomart_head = """
         <?xml version="1.0" encoding="UTF-8"?>
             <!DOCTYPE Query>
             <Query client="true" processor="TSV" limit="-1" header="1" uniqueRows = "1" >
                 <Dataset name="%s" config="%s">
         """.strip()
+
         self.biomart_tail = """
                 </Dataset>
             </Query>
         """.strip()
+
         self.biomart_filter = """<Filter name="%s" value="%s" filter_list=""/>"""
         self.biomart_attribute = """<Attribute name="%s"/>"""
 
@@ -302,8 +305,6 @@ class MartsAdapter(ADBAdapter):
                     return x - se + 1 + pos_sum, y - se + 1 + pos_sum
             else:
                 pos_sum += ee - se + 1
-
-
 
     #TODO: refactor ... function based on old code
     def get_variant_gene(self, chrom, start, stop, _db="hsapiens_gene_ensembl", _dataset='gene_ensembl_config'):
