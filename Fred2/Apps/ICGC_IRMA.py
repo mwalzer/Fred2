@@ -63,12 +63,12 @@ with open(filename_vars, 'r') as f:
         if l['consequence_type'] == "missense_variant"\
                 and l["icgc_mutation_id"] not in var_register:
             try:
-                var = Variant(l["icgc_mutation_id"], VariationType.SNP, l['chromosome'], int(l['chromosome_start']),
+                var = Variant(l["icgc_mutation_id"], VariationType.SNP, l['chromosome'], int(l['chromosome_start']) - 1,
                           l['reference_genome_allele'], l['mutated_to_allele'],
                           {l['transcript_affected']: MutationSyntax(l['transcript_affected'],
-                                    int(filter(type(l['cds_mutation']).isdigit, l['cds_mutation'])),
-                                    int(filter(type(l['aa_mutation']).isdigit, l['aa_mutation'])),
-                                    "c."+l['cds_mutation'], "p."+l['aa_mutation'])},
+                                    int(filter(type(l['cds_mutation']).isdigit, l['cds_mutation'])) - 1,
+                                    int(filter(type(l['aa_mutation']).isdigit, l['aa_mutation'])) - 1,
+                                    "c." + l['cds_mutation'], "p." + l['aa_mutation'])},
                           isHomozygous, l['consequence_type'] == 'synonymous_variant')
                 #all_vars[l["icgc_sample_id"][rs.start():rs.end()]].append(var)
                 all_vars[l["submitted_sample_id"][rs.start():rs.end()]].append(var)
@@ -86,20 +86,20 @@ with open(filename_vars, 'r') as f:
                 else:
                     vt = VariationType.FSDEL
                 if l['cds_mutation']:
-                    t_pos = int(filter(type(l['cds_mutation']).isdigit, l['cds_mutation']))
+                    t_pos = int(filter(type(l['cds_mutation']).isdigit, l['cds_mutation'])) - 1
                     t_syn = l['cds_mutation']
                     if not t_syn.startswith("c."):
                         t_syn = "c." + t_syn
                 else:
-                    tr = ma.get_transcript_position(int(l['chromosome_start']), int(l['chromosome_start']),
+                    tr = ma.get_transcript_position(int(l['chromosome_start']), int(l['chromosome_start']) - 1,
                                                     l['gene_affected'], l['transcript_affected'])
-                    t_pos = tr[0] if tr else '?'
+                    t_pos = int(tr[0]) - 1 if tr else '?'
                     t_syn = "c.?"
-                var = Variant(l["icgc_mutation_id"], vt, l['chromosome'], int(l['chromosome_start']),
+                var = Variant(l["icgc_mutation_id"], vt, l['chromosome'], int(l['chromosome_start']) - 1,
                           l['reference_genome_allele'].strip('-'), l['mutated_to_allele'].strip('-'),
                           {l['transcript_affected']: MutationSyntax(l['transcript_affected'],
                                     t_pos,
-                                    int(filter(type(l['aa_mutation']).isdigit, l['aa_mutation'])),
+                                    int(filter(type(l['aa_mutation']).isdigit, l['aa_mutation'])) - 1,
                                     t_syn,
                                     "p."+l['aa_mutation'])},
                           isHomozygous, False)
@@ -118,20 +118,20 @@ with open(filename_vars, 'r') as f:
                 else:
                     vt = VariationType.DEL
                 if l['cds_mutation']:
-                    t_pos = int(filter(type(l['cds_mutation']).isdigit, l['cds_mutation']))
+                    t_pos = int(filter(type(l['cds_mutation']).isdigit, l['cds_mutation'])) - 1
                     t_syn = l['cds_mutation']
                     if not t_syn.startswith("c."):
                         t_syn = "c." + t_syn
                 else:
                     tr = ma.get_transcript_position(int(l['chromosome_start']), int(l['chromosome_start']),
                                                     l['gene_affected'], l['transcript_affected'])
-                    t_pos = str(tr[0]) if tr else '?'
+                    t_pos = int(tr[0]) - 1 if tr else '?'
                     t_syn = "c.?"
-                var = Variant(l["icgc_mutation_id"], vt, l['chromosome'], int(l['chromosome_start']),
+                var = Variant(l["icgc_mutation_id"], vt, l['chromosome'], int(l['chromosome_start']) - 1,
                           l['reference_genome_allele'].strip('-'), l['mutated_to_allele'].strip('-'),
                           {l['transcript_affected']: MutationSyntax(l['transcript_affected'],
                                     t_pos,
-                                    int(filter(type(l['aa_mutation']).isdigit, l['aa_mutation'])),
+                                    int(filter(type(l['aa_mutation']).isdigit, l['aa_mutation'])) - 1,
                                     t_syn,
                                     "p."+l['aa_mutation'])},
                           isHomozygous, False)
