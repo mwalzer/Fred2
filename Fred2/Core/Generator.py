@@ -427,7 +427,7 @@ def generate_proteins_from_transcripts(transcripts, table='Standard', stop_symbo
 #        P R O T E I N    = = >    P E P T I D E
 ################################################################################
 
-def generate_peptides_from_proteins(proteins, window_size, peptides=None):
+def generate_peptides_from_protein(proteins, window_size, peptides=None, only_variants=False):
     """
     Creates all :class:`~Fred2.Core.Peptide.Peptide` for a given window size, from a given
     :class:`~Fred2.Core.Protein.Protein`.
@@ -450,11 +450,13 @@ def generate_peptides_from_proteins(proteins, window_size, peptides=None):
         res = []
 
         seq = str(protein)
-        for i in xrange(len(protein)+1-window_size):
-            # generate peptide fragment
-            end = i+window_size
-            pep_seq = seq[i:end]
-            res.append((pep_seq, i))
+        for i in xrange(len(protein) + 1 - window_size):
+            if (only_variants and any([i <= vp <= i + window_size - 1 for vp in protein.vars.keys()])) \
+                    or not only_variants: #works quirky with frameshifts ... (if mut does not change first aa, will create one peptide which is same as wildtype)
+                # generate peptide fragment
+                end = i + window_size
+                pep_seq = seq[i:end]
+                res.append((pep_seq, i))
         return res
 
     if isinstance(peptides, Peptide):
@@ -462,6 +464,7 @@ def generate_peptides_from_proteins(proteins, window_size, peptides=None):
 
     final_peptides = {}
 
+    final_peptides = {} if peptides is None else {str(p): p for p in peptides}
     if peptides:
         for p in peptides:
             if not isinstance(p, Peptide):
