@@ -1,6 +1,7 @@
 # This code is part of the Fred2 distribution and governed by its
 # license.  Please see the LICENSE file that should have been included
 # as part of this package.
+import warnings
 
 __author__ = 'schubert,walzer'
 import collections
@@ -152,15 +153,17 @@ class Peptide(MetadataLogger, Seq):
             var = dict()
             fs = dict()
             shift = 0
+            #collect influecing variants prior to _protein_pos
             for i in xrange(_protein_pos):
                 for v in p.vars.get(i, []):
                     if v.type in [VariationType.FSDEL, VariationType.FSINS]:
-                        shift = (v.get_shift()+shift) % 3
+                        shift = (v.get_shift() + shift) % 3
                         if shift:
-                            fs.setdefault(i-_protein_pos, []).append(v)
+                            fs.setdefault(i - _protein_pos, []).append(v)
                         else:
                             fs.clear()
-            for j in xrange(_protein_pos, _protein_pos+len(self)):
+            #get all variants in peptide
+            for j in xrange(_protein_pos, _protein_pos + len(self)):
                 for v in p.vars.get(j, []):
                     var.setdefault(j, []).append(v)
             fs.update(var)
@@ -168,6 +171,23 @@ class Peptide(MetadataLogger, Seq):
         except KeyError:
             raise ValueError("Peptide does not origin from protein with "
                              "transcript ID {transcript}".format(transcript=_transcript_id))
+
+    def get_decorated_sequence(self):
+        deco_snp = set()
+        deco_fs = set()
+        deco_id = set()
+        for fid, o in self.proteinPos.iteritems(): # defaultdict(list,{'ENST00000372470:FRED2_0': [508],'ENST00000413998:FRED2_0': [508]})
+            for p in o:
+                for vp, vo in self.get_variants_by_protein_position(fid, o[0]).iteritems(): # {514: [Variant(g.43815008G>T)]}
+                    if vo[0].type == VariationType.SNP: # for now only first variant at this position - todo sort by fs<indel<snp
+                        deco_snp.add(vp-p)
+        sorted(deco_snp, reversed)
+        seq = str(self)
+        for vp in deco_snp:
+            if vp >= len(str(self)):
+                warnings.warn("unresolvable variant situation")
+            seq = seq[:vp] + '|' + seq[vp] + '|' + seq[vp + 1:] if vp < len(str(self)) - 1 else seq[:vp] + '|' + seq[vp] + '|'
+        return seq
 
     def __eq__(self, other):
         return str(self) == str(other)
