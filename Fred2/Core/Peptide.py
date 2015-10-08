@@ -5,9 +5,9 @@ import warnings
 
 __author__ = 'schubert,walzer'
 import collections
-
 from Bio.Seq import Seq
 from Bio.Alphabet import IUPAC
+import logging
 
 from Fred2.Core import MetadataLogger
 from Fred2.Core.Protein import Protein
@@ -180,12 +180,12 @@ class Peptide(MetadataLogger, Seq):
             for p in o:
                 for vp, vo in self.get_variants_by_protein_position(fid, o[0]).iteritems(): # {514: [Variant(g.43815008G>T)]}
                     if vo[0].type == VariationType.SNP: # for now only first variant at this position - todo sort by fs<indel<snp
-                        deco_snp.add(vp-p)
-        sorted(deco_snp, reversed)
+                        deco_snp.add(vp - p)
+        sorted(deco_snp, reverse=True)
         seq = str(self)
         for vp in deco_snp:
             if vp >= len(str(self)):
-                warnings.warn("unresolvable variant situation")
+                logging.warn("unresolvable variant situation")
             seq = seq[:vp] + '|' + seq[vp] + '|' + seq[vp + 1:] if vp < len(str(self)) - 1 else seq[:vp] + '|' + seq[vp] + '|'
         return seq
 
