@@ -14,6 +14,7 @@ import csv
 import math
 import pandas as pd
 import xlsxwriter
+import itertools
 from openpyxl import load_workbook
 from pandas import ExcelWriter
 
@@ -29,8 +30,33 @@ def create_transcript_column_value(pep):
     #create from first index which is a tuple in Fred2 prediction result dataframes
     return ','.join([x.transcript_id for x in pep[0].get_all_transcripts()])
 
+
+def create_mutationsyntax_column_value(pep):
+    #create from first index which is a tuple in Fred2 prediction result dataframes
+    v = [x.vars.values() for x in pep[0].get_all_transcripts()]
+    vf = list(itertools.chain.from_iterable(v))
+    c = [x.coding.values() for x in vf]
+    cf = list(itertools.chain.from_iterable(c))
+    return ','.join([y.aaMutationSyntax for y in cf])
+
+
+def create_variationfilelinenumber_column_value(pep):
+    #create from first index which is a tuple in Fred2 prediction result dataframes
+    v = [x.vars.values() for x in pep[0].get_all_transcripts()]
+    vf = list(itertools.chain.from_iterable(v))
+    return ','.join([y.id+1 for y in vf])
+
+
+def create_gene_column_value(pep):
+    #create from first index which is a tuple in Fred2 prediction result dataframes
+    v = [x.vars.values() for x in pep[0].get_all_transcripts()]
+    vf = list(itertools.chain.from_iterable(v))
+    return ','.join([y.gene for y in vf])
+
+
 def convert_logscore_to_nM(val):
     return math.pow(50000, 1.0-val)
+
 
 def add_xslx_sheet(xlsx_file, sheetname, dataframe):
     book = load_workbook(xlsx_file)
@@ -80,7 +106,7 @@ for file in files:
     lines = list()
 
     #RE = re.compile("(\w+):([\w.]+):(\w+):\w*:exon(\d+)\D*\d*:(c.\D*(\d+)\D*):(p.\D*(\d+)\D*),")
-    RE = re.compile("(\w+):([\w.]+):(\w+):\w*:exon(\d+)\D*\d*:(c.\D*(\d+)\D*):(p.\D*(\d+)\D*)")
+    RE = re.compile("(\w+):([\w.]+):(\w+):\w*:exon(\d+)\D*\d*:(c.\D*(\d+)\D*):(p.\D*(\d+)\w*)")
 
     with open(file, "r") as f:
     #with open("/home/walzer/bwSyncAndShare/hcc009casereport/GS100038-GS120152_22.01.2016.csv", "r") as f:
@@ -107,8 +133,9 @@ for file in files:
                 coding = dict()
                 coding[nm_id] = MutationSyntax(nm_id, int(trans_pos)-1, int(prot_start)-1, trans_coding, prot_coding)
                 vars.append(
-                        Variant(mut_id, type_mapper.get(mut_type, VariationType.UNKNOWN), chrom, int(genome_start), ref.upper(),
-                                alt.upper(), coding, zygos == "hom", isSynonymous=False))
+                        Variant(mut_id, type_mapper.get(mut_type, VariationType.UNKNOWN), chrom, int(genome_start),
+                                ref.upper(), alt.upper(), coding, zygos == "hom", isSynonymous=False))
+                vars[-1].gene = gene
                 lineswithvariants.add(mut_id)
 
     for linenr,line in enumerate(lines):
