@@ -44,7 +44,7 @@ def create_variationfilelinenumber_column_value(pep):
     #create from first index which is a tuple in Fred2 prediction result dataframes
     v = [x.vars.values() for x in pep[0].get_all_transcripts()]
     vf = list(itertools.chain.from_iterable(v))
-    return ','.join([y.id+1 for y in vf])
+    return ','.join([str(y.id+1) for y in vf])
 
 
 def create_gene_column_value(pep):
@@ -84,12 +84,12 @@ type_mapper = {'missense_variant': VariationType.SNP,
                    ('nonframeshift', 'insertion'): VariationType.INS,
                    ('frameshift', 'insertion'): VariationType.FSINS}
 
-# ttn = EpitopePredictorFactory('netmhc', version="3.4")
-ttn = EpitopePredictorFactory('netMHC', version="3.0a")
-# tts = EpitopePredictorFactory('syfpeithi', version="1.0.2015")
-tts = EpitopePredictorFactory('syfpeithi', version="original")
-# ttp = EpitopePredictorFactory('netmhcpan', version="2.8")
-ttp = EpitopePredictorFactory('netmhcpan', version="2.4")
+ttn = EpitopePredictorFactory('netmhc', version="3.4")
+# ttn = EpitopePredictorFactory('netMHC', version="3.0a")
+tts = EpitopePredictorFactory('syfpeithi', version="1.0.2015")
+# tts = EpitopePredictorFactory('syfpeithi', version="original")
+ttp = EpitopePredictorFactory('netmhcpan', version="2.8")
+# ttp = EpitopePredictorFactory('netmhcpan', version="2.4")
 
 ma = MartsAdapter(biomart="http://ensembl.org")
 #ma = MartsAdapter(biomart="http://grch37.ensembl.org")
@@ -160,92 +160,111 @@ for file in files:
         logging.info("Prediction of length %i"%(peplen))
         e = g.generate_peptides_from_protein(ps, peplen, only_variants=True)
         es = [x for x in e]
-        #if not os.path.isfile(file+".predictions.xlsx"):
+
+        preds_n = pd.DataFrame()
+        preds_n_f = pd.DataFrame()
         try:
             preds_n = ttn.predict(es, alleles=list(target_alleles_set))
-            preds_n_f = pd.DataFrame()
             if not preds_n.empty:
                 preds_n = preds_n.applymap(convert_logscore_to_nM)
                 preds_n_f = preds_n.loc[(preds_n<500).any(axis=1)]
 
-                preds_n['Transcript'] = preds_n.index.map(create_transcript_column_value)
-                preds_n.rename(columns=lambda x: str(x), inplace=True)
-                preds_n.index = preds_n.index.droplevel(1)
-                preds_n.rename(index=lambda x: str(x), inplace=True)
+                # preds_n['Transcript'] = preds_n.index.map(create_transcript_column_value)
+                # preds_n.rename(columns=lambda x: str(x), inplace=True)
+                # preds_n.index = preds_n.index.droplevel(1)
+                # preds_n.rename(index=lambda x: str(x), inplace=True)
 
-                if not preds_n_f.empty:
-                    preds_n_f['Transcript'] = preds_n_f.index.map(create_transcript_column_value)
-                    preds_n_f.rename(columns=lambda x: str(x), inplace=True)
-                    preds_n_f.index = preds_n_f.index.droplevel(1)
-                    preds_n_f.rename(index=lambda x: str(x), inplace=True)
+                # if not preds_n_f.empty:
+                #     preds_n_f['Transcript'] = preds_n_f.index.map(create_transcript_column_value)
+                #     preds_n_f.rename(columns=lambda x: str(x), inplace=True)
+                #     preds_n_f.index = preds_n_f.index.droplevel(1)
+                #     preds_n_f.rename(index=lambda x: str(x), inplace=True)
 
-            logging.info("unfiltered predicted peptides length %i"%(len(preds_n)))
-            logging.info("filtered predicted peptides length %i"%(len(preds_n_f)))
+            # logging.info("unfiltered predicted peptides length %i"%(len(preds_n)))
+            # logging.info("filtered predicted peptides length %i"%(len(preds_n_f)))
 
-
-            #preds_n.to_csv(file+".netmhc"+str(peplen)+".csv", sep="\t")
-            preds_n.to_excel(wpred, str(ttn.name)+str(ttn.version)+"_"+str(peplen),float_format="%.4f")
-            preds_n_f.to_excel(wfilt, str(ttn.name)+str(ttn.version)+"_"+str(peplen),float_format="%.4f")
+            # #preds_n.to_csv(file+".netmhc"+str(peplen)+".csv", sep="\t")
+            # preds_n.to_excel(wpred, str(ttn.name)+str(ttn.version)+"_"+str(peplen),float_format="%.4f")
+            # preds_n_f.to_excel(wfilt, str(ttn.name)+str(ttn.version)+"_"+str(peplen),float_format="%.4f")
 
         except Exception as e:
             logging.error("something went wrong with the netMHC prediction on file %s:"%file)
             logging.error(str(e),e)
+
+        preds_p = pd.DataFrame()
+        preds_p_f = pd.DataFrame()
         try:
             if peplen<12:
                 preds_p = ttp.predict(es, alleles=list(target_alleles_set))
-                preds_p_f = pd.DataFrame()
                 if not preds_p.empty:
                     preds_p = preds_p.applymap(convert_logscore_to_nM)
                     preds_p_f = preds_p.loc[(preds_p<500).any(axis=1)]
 
-                    preds_p['Transcript'] = preds_p.index.map(create_transcript_column_value)
-                    preds_p.rename(columns=lambda x: str(x), inplace=True)
-                    preds_p.index = preds_p.index.droplevel(1)
-                    preds_p.rename(index=lambda x: str(x), inplace=True)
+                    # preds_p['Transcript'] = preds_p.index.map(create_transcript_column_value)
+                    # preds_p.rename(columns=lambda x: str(x), inplace=True)
+                    # preds_p.index = preds_p.index.droplevel(1)
+                    # preds_p.rename(index=lambda x: str(x), inplace=True)
+                    #
+                    # if not preds_p_f.empty:
+                    #     preds_p_f['Transcript'] = preds_p_f.index.map(create_transcript_column_value)
+                    #     preds_p_f.rename(columns=lambda x: str(x), inplace=True)
+                    #     preds_p_f.index = preds_p_f.index.droplevel(1)
+                    #     preds_p_f.rename(index=lambda x: str(x), inplace=True)
 
-                    if not preds_p_f.empty:
-                        preds_p_f['Transcript'] = preds_p_f.index.map(create_transcript_column_value)
-                        preds_p_f.rename(columns=lambda x: str(x), inplace=True)
-                        preds_p_f.index = preds_p_f.index.droplevel(1)
-                        preds_p_f.rename(index=lambda x: str(x), inplace=True)
-
-                #preds_p.to_csv(file+".netpan"+str(peplen)+".csv", sep="\t")
-                preds_p.to_excel(wpred, str(ttp.name)+str(ttp.version)+"_"+str(peplen),float_format="%.4f")
-                preds_p_f.to_excel(wfilt, str(ttp.name)+str(ttp.version)+"_"+str(peplen),float_format="%.4f")
+                # #preds_p.to_csv(file+".netpan"+str(peplen)+".csv", sep="\t")
+                # preds_p.to_excel(wpred, str(ttp.name)+str(ttp.version)+"_"+str(peplen),float_format="%.4f")
+                # preds_p_f.to_excel(wfilt, str(ttp.name)+str(ttp.version)+"_"+str(peplen),float_format="%.4f")
             else:
                 logging.info("No NetMHCpan prediction for size >11")
 
         except Exception as e:
             logging.error("something went wrong with the netMHCpan prediction on file %s:"%file)
             logging.error(str(e),e)
+
+        preds_s = pd.DataFrame()
+        preds_s_f = pd.DataFrame()
         try:
             preds_s = tts.predict(es, alleles=list(target_alleles_set))
-            preds_s_f = pd.DataFrame()
             if not preds_s.empty:
                 preds_s = preds_s * 100
                 preds_s_f = preds_s.loc[(preds_s>50).any(axis=1)]
 
-                preds_s['Transcript'] = preds_s.index.map(create_transcript_column_value)
-                preds_s.rename(columns=lambda x: str(x), inplace=True)
-                preds_s.index = preds_s.index.droplevel(1)
-                preds_s.rename(index=lambda x: str(x), inplace=True)
+                # preds_s['Transcript'] = preds_s.index.map(create_transcript_column_value)
+                # preds_s.rename(columns=lambda x: str(x), inplace=True)
+                # preds_s.index = preds_s.index.droplevel(1)
+                # preds_s.rename(index=lambda x: str(x), inplace=True)
 
-                if not preds_s_f.empty:
-                    preds_s_f['Transcript'] = preds_s_f.index.map(create_transcript_column_value)
-                    preds_s_f.rename(columns=lambda x: str(x), inplace=True)
-                    preds_s_f.index = preds_s_f.index.droplevel(1)
-                    preds_s_f.rename(index=lambda x: str(x), inplace=True)
+                # if not preds_s_f.empty:
+                #     preds_s_f['Transcript'] = preds_s_f.index.map(create_transcript_column_value)
+                #     preds_s_f.rename(columns=lambda x: str(x), inplace=True)
+                #     preds_s_f.index = preds_s_f.index.droplevel(1)
+                #     preds_s_f.rename(index=lambda x: str(x), inplace=True)
 
-            #preds_s.to_csv(file+".syfpeithi"+str(peplen)+".csv", sep="\t")
-            preds_s.to_excel(wpred, str(tts.name)+str(tts.version)+"_"+str(peplen),float_format="%.4f")
-            preds_s_f.to_excel(wfilt, str(tts.name)+str(tts.version)+"_"+str(peplen),float_format="%.4f")
+            # #preds_s.to_csv(file+".syfpeithi"+str(peplen)+".csv", sep="\t")
+            # preds_s.to_excel(wpred, str(tts.name)+str(tts.version)+"_"+str(peplen),float_format="%.4f")
+            # preds_s_f.to_excel(wfilt, str(tts.name)+str(tts.version)+"_"+str(peplen),float_format="%.4f")
 
         except Exception as e:
             logging.error("something went wrong with the syfpeithi prediction on file %s:"%file)
             logging.error(str(e),e)
 
-        # df = EpitopePredictionResult(preds_p_f).merge_results([EpitopePredictionResult(x) for x in [preds_n_f, preds_s_f]])
-        # df.to_excel(wfilt, "combined"+"_"+str(peplen),float_format="%.4f")
+        df = EpitopePredictionResult(preds_p).merge_results([EpitopePredictionResult(x) for x in [preds_n, preds_s]])
+        df['Gene'] = df.index.map(create_gene_column_value)
+        df['Mutation #'] = df.index.map(create_variationfilelinenumber_column_value)
+        df['Mutation <>'] = df.index.map(create_mutationsyntax_column_value)
+        df['Transcript'] = df.index.map(create_transcript_column_value)
+        df.rename(columns=lambda x: str(x), inplace=True)
+        df.rename(index=lambda x: str(x), inplace=True)
+        df.to_excel(wpred, "combined"+"_"+str(peplen),float_format="%.4f")
+
+        dff = EpitopePredictionResult(preds_p_f).merge_results([EpitopePredictionResult(x) for x in [preds_n_f, preds_s_f]])
+        dff['Gene'] = dff.index.map(create_gene_column_value)
+        dff['Mutation #'] = dff.index.map(create_variationfilelinenumber_column_value)
+        dff['Mutation <>'] = dff.index.map(create_mutationsyntax_column_value)
+        dff['Transcript'] = dff.index.map(create_transcript_column_value)
+        dff.rename(columns=lambda x: str(x), inplace=True)
+        dff.rename(index=lambda x: str(x), inplace=True)
+        dff.to_excel(wfilt, "combined"+"_"+str(peplen),float_format="%.4f")
 
 
     wpred.save()
