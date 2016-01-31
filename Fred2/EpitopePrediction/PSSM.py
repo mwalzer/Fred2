@@ -10,6 +10,7 @@
 
 import itertools
 import warnings
+import logging
 import pandas
 import math
 
@@ -40,7 +41,7 @@ class APSSMEpitopePrediction(AEpitopePrediction):
         """
         def __load_allele_model(allele, length):
             allele_model = "%s_%i"%(allele, length)
-            return getattr(__import__("Fred2.Data.pssms."+self.name+".mat."+allele_model, fromlist=[allele_model]),
+            return getattr(__import__("Fred2.Data.pssms."+self.name+"."+self.matricesfoldername+"."+allele_model, fromlist=[allele_model]),
                            allele_model)
 
         if isinstance(peptides, Peptide):
@@ -63,22 +64,21 @@ class APSSMEpitopePrediction(AEpitopePrediction):
             alleles_string = {conv_a:a for conv_a, a in itertools.izip(self.convert_alleles(alleles), alleles)}
 
         result = {}
-        pep_groups = pep_seqs.keys()
-        pep_groups.sort(key=len)
-        for length, peps in itertools.groupby(pep_groups, key=len):
-
+        no_input = True
+        for length, peps in itertools.groupby(pep_seqs.iterkeys(), key= lambda x: len(x)):
             peps = list(peps)
             #dynamicaly import prediction PSSMS for alleles and predict
-            if self.supportedLength is not None and length not in self.supportedLength:
-                warnings.warn("Peptide length of %i is not supported by %s"%(length, self.name))
+            if length not in self.supportedLength:
+                logging.warn("Peptide length of %i is not supported by %s"%(length, self.name))
                 continue
 
             for a in alleles_string.keys():
                 try:
                     pssm = __load_allele_model(a, length)
                     max_score = sum([max(scrs.values()) for pos,scrs in pssm.iteritems()]) # for percent max reporting
-                except AttributeError:
-                    warnings.warn("No model found for %s with length %i"%(allales_string[a], length))
+                    no_input = False
+                except (AttributeError,ImportError) as e:
+                    logging.warn("Allele %s with length %i not supported by %s"%(alleles_string[a], length, self.name))
                     continue
 
                 if alleles_string[a] not in result:
@@ -90,7 +90,11 @@ class APSSMEpitopePrediction(AEpitopePrediction):
                     #print a, score, result
 
         if not result:
-            raise ValueError("No predictions could be made with " +self.name+" for given input. Check your"
+            if no_input:
+                logging.warn("From given input no input was suitable for any prediction by %s, returning empy."%self.name)
+                return pandas.DataFrame()
+            else:
+                raise ValueError("No predictions could be made with " +self.name+" for given input. Check your"
                              "epitope length and HLA allele combination.")
 
         df_result = EpitopePredictionResult.from_dict(result)
@@ -103,7 +107,7 @@ class Syfpeithi(APSSMEpitopePrediction):
     """
     Represents the Syfpeithi PSSM predictor.
 
-    .. note::
+    .. note::in updated version as of 2015
 
         Rammensee, H. G., Bachmann, J., Emmerich, N. P. N., Bachor, O. A., & Stevanovic, S. (1999).
         SYFPEITHI: database for MHC ligands and peptide motifs. Immunogenetics, 50(3-4), 213-219.
@@ -112,6 +116,7 @@ class Syfpeithi(APSSMEpitopePrediction):
     __supported_length = frozenset([8, 9, 10, 11, 12, 13])
     __name = "syfpeithi"
     __version = "1.0.2015"
+    __matricesfoldername = "mat"
 
     @property
     def version(self):
@@ -136,6 +141,76 @@ class Syfpeithi(APSSMEpitopePrediction):
         A list of supported :class:`~Fred2.Core.Peptide.Peptide` lengths
         """
         return self.__supported_length
+
+    @property
+    def matricesfoldername(self):
+        """
+        The folder name for the matrices within the :mod:`~Fred2.Data.pssms.syfpeithi` folder
+        """
+        return self.__matricesfoldername
+
+    def convert_alleles(self, alleles):
+        """
+        Converts :class:`~Fred2.Core.Allele.Allele` into the internal :class:`~Fred2.Core.Allele.Allele`
+        representation of the predictor and returns a string representation
+
+        :param alleles: The :class:`~Fred2.Core.Allele.Allele` for which the internal predictor representation is needed
+        :type alleles: list(:class:`~Fred2.Core.Allele.Allele`)
+        :return: Returns a string representation of the input :class:`~Fred2.Core.Allele.Allele`
+        :rtype: list(str)
+        """
+        return ["%s_%s%s"%(a.locus, a.supertype, a.subtype) for a in alleles]
+
+
+class Syfpeithi_original(Syfpeithi):
+    """
+    Represents the Syfpeithi PSSM predictor.
+
+    .. note::in original version as published in 1999
+
+        Rammensee, H. G., Bachmann, J., Emmerich, N. P. N., Bachor, O. A., & Stevanovic, S. (1999).
+        SYFPEITHI: database for MHC ligands and peptide motifs. Immunogenetics, 50(3-4), 213-219.
+    """
+
+    __alleles = frozenset(['B*15:10', 'B*41:01', 'B*37:01', 'B*27:05', 'B*38:01', 'A*02:01', 'B*47:01', 'A*26:01',
+                           'B*37:01', 'DRB1*11:01', 'B*50:01', 'B*07:02', 'A*68:01', 'A*24:02', 'DRB1*15:01', 'B*15:01',
+                           'B*45:01', 'A*11:01', 'A*03:01', 'B*40:01', 'DRB1*03:01', 'B*39:01', 'DRB1*01:01', 'B*51:01',
+                           'B*39:02', 'B*08:01', 'B*18:01', 'B*44:02', 'B*49:01', 'DRB1*07:01', 'B*14:02', 'A*01:01'])
+    __supported_length = frozenset([8, 9, 10, 11])
+    __name = "syfpeithi"
+    __version = "original"
+    __matricesfoldername = "ori"
+
+    @property
+    def version(self):
+        """The version of the predictor"""
+        return self.__version
+
+    @property
+    def name(self):
+        """The name of the predictor"""
+        return self.__name
+
+    @property
+    def supportedAlleles(self):
+        """
+        A list of supported :class:`~Fred2.Core.Allele.Allele`
+        """
+        return self.__alleles
+
+    @property
+    def supportedLength(self):
+        """
+        A list of supported :class:`~Fred2.Core.Peptide.Peptide` lengths
+        """
+        return self.__supported_length
+
+    @property
+    def matricesfoldername(self):
+        """
+        The folder name for the matrices within the :mod:`~Fred2.Data.pssms.syfpeithi` folder
+        """
+        return self.__matricesfoldername
 
     def convert_alleles(self, alleles):
         """
