@@ -12,7 +12,7 @@
 
 """
 
-import warnings
+import logging
 from itertools import chain
 
 from Fred2.Core.Base import COMPLEMENT
@@ -50,9 +50,9 @@ def _incorp_snp(seq, var, transId, pos, offset, isReverse=False):
     ref = var.ref[::-1].translate(COMPLEMENT) if isReverse else var.ref
     obs = var.obs[::-1].translate(COMPLEMENT) if isReverse else var.obs
 
-    #print transId, len(seq), var.get_transcript_position(transId)-1
+    #print transId, len(seq), var.coding[transId].tranPos #DEBUG
     if seq[pos] != ref:
-        warnings.warn("For %s bp does not match ref of assigned variant %s. Pos %i, var ref %s, seq ref %s " % (
+        logging.warn("For %s bp does not match ref of assigned variant %s. Pos %i, var ref %s, seq ref %s " % (
         transId, str(var), pos, ref,
         seq[pos]))
 
@@ -243,7 +243,7 @@ def generate_peptides_from_variants(vars, length, dbadapter, id_type, peptides=N
         #print tId
         query = dbadapter.get_transcript_information(tId, type=id_type, _db=db)
         if query is None:
-            warnings.warn("Transcript with ID %s not found in DB"%tId)
+            logging.warn("No transcript with ID %s in DB, skipping"%tId)
             continue
 
         tSeq = query[EAdapterFields.SEQ]
@@ -254,7 +254,7 @@ def generate_peptides_from_variants(vars, length, dbadapter, id_type, peptides=N
                 if v.type in [VariationType.FSINS, VariationType.INS]
                 else v.genomePos, reverse=True)
         if not _check_for_problematic_variants(vs):
-            warnings.warn("Intersecting variants found for Transcript %s"%tId)
+            logging.warn("Intersecting variants found for Transcript %s"%tId)
             continue
 
         generate_peptides_from_variants.transOff = 0
@@ -349,10 +349,13 @@ def generate_transcripts_from_variants(vars, dbadapter, id_type, db="hsapiens_ge
     for tId, vs in transToVar.iteritems():
         query = dbadapter.get_transcript_information(tId, type=id_type, _db=db)
         if query is None:
-            warnings.warn("Transcript with ID %s not found in DB"%tId)
+            logging.warn("No transcript with ID %s in DB, skipping"%tId)
             continue
 
         tSeq = query[EAdapterFields.SEQ]
+        if sequenceInject and any([x.coding[tId].tranPos > len(tSeq) for x in vs]):
+            logging.warn("Using injected sequence for  ID %s"%tId)
+            tSeq = sequenceInject.get_transcript_sequence(tId)
         geneid = query[EAdapterFields.GENE]
         strand = query[EAdapterFields.STRAND]
 
@@ -360,7 +363,7 @@ def generate_transcripts_from_variants(vars, dbadapter, id_type, db="hsapiens_ge
                 if v.type in [VariationType.FSINS, VariationType.INS]
                 else v.genomePos, reverse=True)
         if not _check_for_problematic_variants(vs):
-            warnings.warn("Intersecting variants found for Transcript %s"%tId)
+            logging.warn("Intersecting variants found for Transcript %s"%tId)
             continue
         generate_transcripts_from_variants.transOff = 0
         for tId, varSeq, varComb in _generate_combinations(tId, vs, list(tSeq), {}, 0, isReverse=strand == REVERS):
