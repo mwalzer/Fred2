@@ -225,13 +225,15 @@ class Peptide(MetadataLogger, Seq):
             for p in o:
                 for vp, vo in self.get_variants_by_protein_position(fid, o[0]).iteritems(): # {514: [Variant(g.43815008G>T)]}
                     if vo[0].type == VariationType.SNP: # for now only first variant at this position - todo sort by fs<indel<snp
-                        deco_snp.add(vp - p)
+                        #deco_snp.add(vp - p)
+                        deco_snp.add(vp)
         sorted(deco_snp, reverse=True)
         seq = str(self)
         for vp in deco_snp:
-            if vp >= len(str(self)):
-                logging.warn("unresolvable variant situation")
-            seq = seq[:vp] + '|' + seq[vp] + '|' + seq[vp + 1:] if vp < len(str(self)) - 1 else seq[:vp] + '|' + seq[vp] + '|'
+            if vp >= len(seq):
+                logging.warning("unresolvable variant situation")
+                continue
+            seq = seq[:vp] + '|' + seq[vp] + '|' + seq[vp + 1:] if vp < (len(seq) - 1) else seq[:vp] + '|' + seq[vp] + '|'
         return seq
 
     def __eq__(self, other):
