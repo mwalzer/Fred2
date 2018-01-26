@@ -279,7 +279,7 @@ def generate_peptides_from_variants(vars, length, dbadapter, id_type, peptides=N
 ################################################################################
 
 
-def generate_transcripts_from_variants(vars, dbadapter, id_type, db="hsapiens_gene_ensembl"):
+def generate_transcripts_from_variants(vars, dbadapter, id_type, db="hsapiens_gene_ensembl", sequence_injection=None):
     """
     Generates all possible transcript :class:`~Fred2.Core.Transcript.Transcript` based on the given
     :class:`~Fred2.Core.Variant.Variant`.
@@ -292,6 +292,8 @@ def generate_transcripts_from_variants(vars, dbadapter, id_type, db="hsapiens_ge
     :type dbadapter: class:`~Fred2.IO.ADBAdapter.ADBAdapter`
     :param id_type: The type of the transcript IDs used in annotation of variants (e.g. REFSEQ, ENSAMBLE)
     :type id_type: :func:`~Fred2.IO.ADBAdapter.EIdentifierTypes`
+    :param sequence_injection: DBAdapter with custom sequences for certain transcript IDs
+    :type sequence_injection: class:`~Fred2.IO.ADBAdapter.ADBAdapter`
     :return: A generator of transcripts with all possible variations determined by the given variant list
     :rtype: Generator(:class:`~Fred2.Core.Transcript.Transcript)
     :invariant: Variants are considered to be annotated from forward strand, regardless of the transcripts real
@@ -353,9 +355,9 @@ def generate_transcripts_from_variants(vars, dbadapter, id_type, db="hsapiens_ge
             continue
 
         tSeq = query[EAdapterFields.SEQ]
-        if sequenceInject and any([x.coding[tId].tranPos > len(tSeq) for x in vs]):
+        if sequence_injection and any([x.coding[tId].tranPos > len(tSeq) for x in vs]):
             logging.warn("Using injected sequence for  ID %s"%tId)
-            tSeq = sequenceInject.get_transcript_sequence(tId)
+            tSeq = sequence_injection.get_transcript_sequence(tId)
         geneid = query[EAdapterFields.GENE]
         strand = query[EAdapterFields.STRAND]
 

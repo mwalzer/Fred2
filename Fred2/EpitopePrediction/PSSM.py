@@ -86,7 +86,7 @@ class APSSMEpitopePrediction(AEpitopePrediction):
                 ##here is the prediction and result object missing##
                 for p in peps:
                     score = sum(pssm[i].get(p[i], 0.0) for i in xrange(length))+pssm.get(-1,{}).get("con", 0)
-                    result[allales_string[a]][pep_seqs[p]] = (100.0 / float(max_score) * float(score)) / 100.0 #report percent of max for this allele matrix
+                    result[alleles_string[a]][pep_seqs[p]] = (100.0 / float(max_score) * float(score)) / 100.0 #report percent of max for this allele matrix
                     #print a, score, result
 
         if not result:
