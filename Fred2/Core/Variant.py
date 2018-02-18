@@ -8,7 +8,7 @@
 
 """
 import math
-
+from functools import total_ordering
 from Fred2.Core.Base import MetadataLogger
 
 
@@ -23,7 +23,7 @@ Enum for variation types:
 type.SNP, type.DEL, type.INS, type.FSDEL, type.FSINS, type.UNKNOWN
 """
 
-
+@total_ordering
 class MutationSyntax():
     """
     This class represents the mutation syntax of a variant and stores its 
@@ -46,7 +46,16 @@ class MutationSyntax():
         self.cdsMutationSyntax = cds  #c. ...
         self.aaMutationSyntax = aas  #p. ...
 
+    def __eq__(self, other):
+        return (self.cdsMutationSyntax, self.aaMutationSyntax, self.transID) == \
+               (other.cdsMutationSyntax, other.aaMutationSyntax, other.transID)
 
+    def __lt__(self, other):
+        return (self.transID, self.tranPos) <\
+               (other.transID, other.tranPos)
+
+
+@total_ordering
 class Variant(MetadataLogger):
     """
     A :class:`~Fred2.Core.Variant.Variant` contains information about a single genetic modification of
@@ -92,6 +101,13 @@ class Variant(MetadataLogger):
     def __repr__(self):
         return "Variant(g.%i%s>%s):%s" % (self.genomePos, self.ref, self.obs, self.experimentalDesign) \
             if self.experimentalDesign else "Variant(g.%i%s>%s)" % (self.genomePos, self.ref, self.obs)
+
+    def __eq__(self, other):
+        return self.id == other.id and self.coding == other.coding
+
+    def __lt__(self, other):
+        return (self.chrom, self.genomePos) <\
+               (other.chrom, other.genomePos)
 
     def get_transcript_offset(self):
         """
