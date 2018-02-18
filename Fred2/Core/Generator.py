@@ -45,19 +45,22 @@ def _incorp_snp(seq, var, transId, pos, offset, isReverse=False):
     :rtype: int
     """
     if VariationType.SNP != var.type:
-        raise TypeError("%s is not a SNP"%str(var))
+        raise TypeError("Error: {v} is not a SNP!".format(v=str(var)))
    
-    ref = var.ref[::-1].translate(COMPLEMENT) if isReverse else var.ref
-    obs = var.obs[::-1].translate(COMPLEMENT) if isReverse else var.obs
+    # ref = var.ref[::-1].translate(COMPLEMENT) if isReverse else var.ref
+    # obs = var.obs[::-1].translate(COMPLEMENT) if isReverse else var.obs
+    # if ref (and obs) is given as nucleotide at variant position on the forward strand regardless of gene orientaion
+    # (like in the ICGC variant format), then the expected nucleotide in the cds sequence is for forward genes the
+    # transcription of ref, for reverse genes the the complement of the transcription of ref, which is ref
+    ref = var.ref if isReverse else var.ref[::-1].translate(COMPLEMENT)
+    obs = var.obs if isReverse else var.obs[::-1].translate(COMPLEMENT)
 
     #print transId, len(seq), var.coding[transId].tranPos #DEBUG
     if seq[pos] != ref:
-        logging.warn("For %s bp does not match ref of assigned variant %s. Pos %i, var ref %s, seq ref %s " % (
-        transId, str(var), pos, ref,
-        seq[pos]))
+        logging.warn("Transcript nucleotide at [{pos}]:{n} does not match ref({r}) of assigned variant {id}: {v}: ".format(
+            v=str(var), id=transId, pos=pos, n=seq[pos], r=ref))
 
     seq[pos] = obs
-
     return offset
 
 
