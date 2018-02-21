@@ -13,7 +13,7 @@
 """
 
 import logging
-from itertools import chain
+from itertools import chain, tee
 
 from Fred2.Core.Base import COMPLEMENT
 from Fred2.Core.Protein import Protein
@@ -158,7 +158,8 @@ def _check_for_problematic_variants(vars):
 #################################################################
 # Public transcript generator functions
 def generate_peptides_from_variants(vars, length, dbadapter, id_type, peptides=None,
-                                    table='Standard', stop_symbol='*', to_stop=True, cds=False, db="hsapiens_gene_ensembl"):
+                                    table='Standard', stop_symbol='*', to_stop=True, cds=False,
+                                    db="hsapiens_gene_ensembl", experimental_design_filter=None):
     """
     Generates :class:`~Fred2.Core.Peptide.Peptide` from :class:`~Fred2.Core.Variant.Variant` and avoids the
     construction of all possible combinations of heterozygous variants by considering only those within the peptide
@@ -188,6 +189,9 @@ def generate_peptides_from_variants(vars, length, dbadapter, id_type, peptides=N
                      that the sequence length is a multiple of three, and that there is a single in frame stop codon at
                      the end (this will be excluded from the protein sequence, regardless of the to_stop option). If
                      these tests fail, an exception is raised
+    :param str db: The database type to use in internal dbadapter use.
+    :param str experimental_design_filter: defines which experimental design factor is considered specific and will be 
+                    prereq for peptides reported to contain at least one variant that considered specific 
     :return: A list of unique (polymorphic) peptides
     :rtype: Generator(:class:`~Fred2.Core.Peptide.Peptide`)
     :raises ValueError: If incorrect table argument is pasted
@@ -207,7 +211,7 @@ def generate_peptides_from_variants(vars, length, dbadapter, id_type, peptides=N
                 pos = v.coding[tId].tranPos + offset
                 usedVs[pos] = v
                 offset = _incorp.get(v.type, lambda a, b, c, d, e, f: e)(seq, v, tId, pos, offset, isReverse)
-                for s in _generate_combinations(tId, vs, seq, usedVs, offset,isReverse):
+                for s in _generate_combinations(tId, vs, seq, usedVs, offset, isReverse):
                     yield s
             else:
                 vs_tmp = vs[:]
@@ -253,26 +257,37 @@ def generate_peptides_from_variants(vars, length, dbadapter, id_type, peptides=N
         vs.sort(key=lambda v: v.genomePos-1
                 if v.type in [VariationType.FSINS, VariationType.INS]
                 else v.genomePos, reverse=True)
-        if not _check_for_problematic_variants(vs):
-            logging.warn("Intersecting variants found for Transcript %s"%tId)
-            continue
 
         generate_peptides_from_variants.transOff = 0
-        for start in xrange(0, len(tSeq) + 1 - 3 * length, 3):
+        for start in xrange(0, len(tSeq) + 1 - 3 * length, 3):  # each window in codons size steps for peptide length
             #supoptimal as it always has to traverse the combination tree for all frameshift mutations.
             end = start + 3 * length
             vars_fs_hom = filter(lambda x: (x.isHomozygous
                                     or x.type in [VariationType.FSINS, VariationType.FSDEL])
                                     and x.coding[tId].tranPos < start, vs)
             vars_in_window = filter(lambda x: start <= x.coding[tId].tranPos < end, vs)
-
             if vars_in_window:
-                vars = vars_fs_hom+vars_in_window
-                for ttId, varSeq, varComb in _generate_combinations(tId, vars, list(tSeq), {}, 0, strand == REVERS):
+                all_vars_in_window = vars_fs_hom+vars_in_window
+                for ttId, varSeq, varCombG in _generate_combinations(tId, all_vars_in_window, list(tSeq), {}, 0, strand == REVERS):
+                    varComb_tee = tee(varCombG, 1)  #tee uses lazy load (on demand copy), but (from the docs) if one iterator uses most or all of the data before another iterator starts, it is faster to use list() instead of tee()
+                    if not _check_for_problematic_variants(varComb_tee):
+                        logging.warn("Intersecting variants found for Transcript {ttid} in window {w} with variations "
+                                     "including FS preceding the window.)".format(
+                                     ttid=ttId, w='[' + str(start) + ':' + str(end) + ']'))
+                        continue
+                    varComb = list(varCombG)
+                    if experimental_design_filter and not any(v.experimentalDesign == experimental_design_filter for v in varComb):
+                        # no specific variants in variants
+                        continue
                     prots = chain(prots, generate_proteins_from_transcripts(Transcript("".join(varSeq), geneid, ttId,
                                                                                        vars=varComb)))
-    return [ p for p in generate_peptides_from_proteins(prots, length, peptides=peptides)
+    peps = [p for p in generate_peptides_from_protein(prots, length, peptides=peptides)
              if any(p.get_variants_by_protein(prot) for prot in p.proteins.iterkeys())]
+    if experimental_design_filter:
+        peps = [p for p in peps if any([x.experimentalDesign == experimental_design_filter for x
+                                    in p.get_variants_by_protein(prot)
+                                    for prot in p.proteins.iterkeys()])]
+    return peps
 
 ################################################################################
 #        V A R I A N T S     = = >    T R A N S C R I P T S
