@@ -12,11 +12,13 @@ from functools import total_ordering
 from Fred2.Core.Base import MetadataLogger
 
 
-VariationType = (lambda **enums: type('Enum', (), enums))(SNP=0,
-                                                          DEL=1,
-                                                          INS=2,
-                                                          FSDEL=3,
-                                                          FSINS=4,
+# IMPORTANT order for integration precedence (due to genome position sorting and implementation in var.__lq__, smaller
+# is of higher precedence): DEL before INS ... before SNP
+VariationType = (lambda **enums: type('Enum', (), enums))(DEL=0,
+                                                          INS=1,
+                                                          FSDEL=2,
+                                                          FSINS=3,
+                                                          SNP=4,
                                                           UNKNOWN=5)
 """
 Enum for variation types:
@@ -106,8 +108,8 @@ class Variant(MetadataLogger):
         return self.id == other.id and self.coding == other.coding
 
     def __lt__(self, other):
-        return (self.chrom, self.genomePos) <\
-               (other.chrom, other.genomePos)
+        return (self.chrom, self.genomePos, self.type) <\
+               (other.chrom, other.genomePos, other.type)
 
     def get_transcript_offset(self):
         """

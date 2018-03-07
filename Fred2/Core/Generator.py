@@ -142,18 +142,65 @@ def _check_for_problematic_variants(vars):
             current_range[0] = var.genomePos
             current_range[1] = var.genomePos
         return current_range
-    v_tmp = vars[:]
-    v = v_tmp.pop()
 
-    current_range = get_range(v)
-    for v in reversed(v_tmp):
-        genome_pos = v.genomePos-1 if v.type in [VariationType.FSINS, VariationType.INS] else v.genomePos
-        if genome_pos <= current_range[1]:
-            return False
-        else:
-            current_range = get_range(v)
+    v_tmp = list(vars)
+    if v_tmp:
+        v = v_tmp.pop()
+
+        current_range = get_range(v)
+        for v in reversed(v_tmp):
+            genome_pos = v.genomePos-1 if v.type in [VariationType.FSINS, VariationType.INS] else v.genomePos
+            if genome_pos <= current_range[1]:
+                return False
+            else:
+                current_range = get_range(v)
     return True
 
+
+def _count_problematic_variants(vars):
+    """
+    Count problematic variants, i.e. intersecting variants. Intersecting variants with equal 
+    get_metadata("planned_collisions") will be ignored
+
+    :param vars: Initial list of variants
+    :type vars:  list(:class:`~Fred2.Core.Variant.Variant`)
+    :return: False or 0 if no intersecting variants were found
+    :rtype: int
+    :precondition: list(:class:`~Fred2.Core.Variant.Variant`) vars is sorted in descending genomic position
+    """
+    def get_range(var):
+        current_range = [0, 0]
+        # TODO review pos-1 for INDEL in respect to ICGC coordinates and variant creation
+        if var.type in [VariationType.FSDEL, VariationType.DEL]:
+            current_range[0] = var.genomePos
+            current_range[1] = var.genomePos+len(v.ref)-1
+        elif var.type in [VariationType.FSINS, VariationType.INS]:
+            current_range[0] = var.genomePos-1
+            current_range[1] = var.genomePos-1
+        else:
+            current_range[0] = var.genomePos
+            current_range[1] = var.genomePos
+        return current_range
+
+    v_tmp = list(vars)
+    c = 0
+
+    if v_tmp:
+        v = v_tmp.pop()
+        current_range = get_range(v)
+        current_planned_collision = v.get_metadata("planned_collisions")
+        for v in reversed(v_tmp):
+            genome_pos = v.genomePos-1 if v.type in [VariationType.FSINS, VariationType.INS] else v.genomePos
+            if genome_pos <= current_range[1] \
+                    and current_planned_collision \
+                    and v.get_metadata("planned_collisions") \
+                    and current_planned_collision != v.get_metadata("planned_collisions"):  # avoid None != None
+                c += 1
+            else:
+                current_range = get_range(v)
+                current_planned_collision = v.get_metadata("planned_collisions")
+
+    return c
 
 #################################################################
 # Public transcript generator functions
@@ -214,8 +261,8 @@ def generate_peptides_from_variants(vars, length, dbadapter, id_type, peptides=N
                 for s in _generate_combinations(tId, vs, seq, usedVs, offset, isReverse):
                     yield s
             else:
-                vs_tmp = vs[:]
-                tmp_seq = seq[:]
+                vs_tmp = list(vs)
+                tmp_seq = list(seq)
                 tmp_usedVs = usedVs.copy()
 
                 #generate transcript without the current variant
@@ -254,39 +301,39 @@ def generate_peptides_from_variants(vars, length, dbadapter, id_type, peptides=N
         geneid = query[EAdapterFields.GENE]
         strand = query[EAdapterFields.STRAND]
 
-        vs.sort(key=lambda v: v.genomePos-1
-                if v.type in [VariationType.FSINS, VariationType.INS]
-                else v.genomePos, reverse=True)
+        # TODO test for del < ins < ... < snv
+        vs.sort(reverse=True)
 
         generate_peptides_from_variants.transOff = 0
         for start in xrange(0, len(tSeq) + 1 - 3 * length, 3):  # each window in codons size steps for peptide length
-            #supoptimal as it always has to traverse the combination tree for all frameshift mutations.
+            #suboptimal as it always has to traverse the combination tree for all frameshift mutations.
             end = start + 3 * length
             vars_fs_hom = filter(lambda x: (x.isHomozygous
                                     or x.type in [VariationType.FSINS, VariationType.FSDEL])
                                     and x.coding[tId].tranPos < start, vs)
             vars_in_window = filter(lambda x: start <= x.coding[tId].tranPos < end, vs)
-            if vars_in_window:
+            if len(vars_in_window) > 0:
                 all_vars_in_window = vars_fs_hom+vars_in_window
-                for ttId, varSeq, varCombG in _generate_combinations(tId, all_vars_in_window, list(tSeq), {}, 0, strand == REVERS):
-                    varComb_tee = tee(varCombG, 1)  #tee uses lazy load (on demand copy), but (from the docs) if one iterator uses most or all of the data before another iterator starts, it is faster to use list() instead of tee()
-                    if not _check_for_problematic_variants(varComb_tee[0]):
-                        logging.warn("Intersecting variants found for Transcript {ttid} in window {w} with variations "
-                                     "including FS preceding the window.)".format(
-                                     ttid=ttId, w='[' + str(start) + ':' + str(end) + ']'))
+                for ttId, varSeq, varCombDict in _generate_combinations(tId, all_vars_in_window, list(tSeq), {}, 0, strand == REVERS):
+                    if len(varCombDict) < 1:
                         continue
-                    varComb = list(varCombG)
-                    if experimental_design_filter and not any(v.experimentalDesign == experimental_design_filter for v in varComb):
+                    intersecting = _count_problematic_variants(varCombDict.values())  # planned collisions do not count against intersecting
+                    if intersecting:
+                        logging.warn("Intersecting variants ({c} intersections) found for Transcript {ttid} in window "
+                                     "{w} with variations including FS preceding the window.)".format(
+                                     ttid=ttId, w='[' + str(start) + ':' + str(end) + ']', c=intersecting))
+                        continue  # TODO test if this gets observed
+                    if experimental_design_filter and not any(v.experimentalDesign == experimental_design_filter for v in varCombDict.values()):
                         # no specific variants in variants
                         continue
                     prots = chain(prots, generate_proteins_from_transcripts(Transcript("".join(varSeq), geneid, ttId,
-                                                                                       vars=varComb)))
+                                                                                       vars=varCombDict)))
     peps = [p for p in generate_peptides_from_protein(prots, length, peptides=peptides)
              if any(p.get_variants_by_protein(prot) for prot in p.proteins.iterkeys())]
     if experimental_design_filter:
-        peps = [p for p in peps if any([x.experimentalDesign == experimental_design_filter for x
-                                    in p.get_variants_by_protein(prot)
-                                    for prot in p.proteins.iterkeys()])]
+        peps = [p for p in peps if any(x.experimentalDesign == experimental_design_filter for x
+                                    in chain.from_iterable(p.get_variants_by_protein(prot)
+                                    for prot in p.proteins.iterkeys()))]
     return peps
 
 ################################################################################
