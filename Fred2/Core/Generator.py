@@ -114,7 +114,7 @@ _incorp = {
             VariationType.INS: _incorp_insertion,
             VariationType.FSINS: _incorp_insertion,
             VariationType.SNP: _incorp_snp
-         }
+          }
 
 _allowed_aas = frozenset('ACDEFGHIKLMNPQRSTVWY')
 
@@ -270,7 +270,7 @@ def generate_peptides_from_variants(vars, length, dbadapter, id_type, peptides=N
                 all_vars_in_window = vars_fs_hom+vars_in_window
                 for ttId, varSeq, varCombG in _generate_combinations(tId, all_vars_in_window, list(tSeq), {}, 0, strand == REVERS):
                     varComb_tee = tee(varCombG, 1)  #tee uses lazy load (on demand copy), but (from the docs) if one iterator uses most or all of the data before another iterator starts, it is faster to use list() instead of tee()
-                    if not _check_for_problematic_variants(varComb_tee):
+                    if not _check_for_problematic_variants(varComb_tee[0]):
                         logging.warn("Intersecting variants found for Transcript {ttid} in window {w} with variations "
                                      "including FS preceding the window.)".format(
                                      ttid=ttId, w='[' + str(start) + ':' + str(end) + ']'))
