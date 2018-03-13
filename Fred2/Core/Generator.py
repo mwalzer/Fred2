@@ -311,9 +311,12 @@ def generate_peptides_from_variants(vars, length, dbadapter, id_type, peptides=N
             vars_fs_hom = filter(lambda x: (x.isHomozygous
                                     or x.type in [VariationType.FSINS, VariationType.FSDEL])
                                     and x.coding[tId].tranPos < start, vs)
-            vars_in_window = filter(lambda x: start <= x.coding[tId].tranPos < end, vs)
+            # vars_in_window = filter(lambda x: start <= x.coding[tId].tranPos < end, vs)
+            # TODO what about overlaps? transpos < start < transpos+len
+            vars_in_window = filter(lambda x: start < x.coding[tId].tranPos + len(x.obs) and
+                                                      x.coding[tId].tranPos < end, vs)
             if len(vars_in_window) > 0:
-                all_vars_in_window = vars_fs_hom+vars_in_window
+                all_vars_in_window = list(set(vars_fs_hom+vars_in_window))
                 for ttId, varSeq, varCombDict in _generate_combinations(tId, all_vars_in_window, list(tSeq), {}, 0, strand == REVERS):
                     if len(varCombDict) < 1:
                         continue
@@ -328,6 +331,7 @@ def generate_peptides_from_variants(vars, length, dbadapter, id_type, peptides=N
                         continue
                     prots = chain(prots, generate_proteins_from_transcripts(Transcript("".join(varSeq), geneid, ttId,
                                                                                        vars=varCombDict)))
+                    # TODO this IS! computationally more expensive than generating all prots and then get the peps
     peps = [p for p in generate_peptides_from_protein(prots, length, peptides=peptides)
              if any(p.get_variants_by_protein(prot) for prot in p.proteins.iterkeys())]
     if experimental_design_filter:
@@ -423,7 +427,7 @@ def generate_transcripts_from_variants(vars, dbadapter, id_type, db="hsapiens_ge
         geneid = query[EAdapterFields.GENE]
         strand = query[EAdapterFields.STRAND]
 
-        vs.sort(key=lambda v: v.genomePos-1
+        vs.sort(key=lambda v: v.genomePos-1  # not true for ICGC format and should in general be 'corrected' during variant creation if VCF like format (i.e. last before insertion is repeated)
                 if v.type in [VariationType.FSINS, VariationType.INS]
                 else v.genomePos, reverse=True)
         if not _check_for_problematic_variants(vs):

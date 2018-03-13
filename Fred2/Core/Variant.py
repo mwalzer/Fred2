@@ -12,18 +12,18 @@ from functools import total_ordering
 from Fred2.Core.Base import MetadataLogger
 
 
-# IMPORTANT order for integration precedence (due to genome position sorting and implementation in var.__lq__, smaller
-# is of higher precedence): DEL before INS ... before SNP
-VariationType = (lambda **enums: type('Enum', (), enums))(DEL=0,
-                                                          INS=1,
-                                                          FSDEL=2,
-                                                          FSINS=3,
+VariationType = (lambda **enums: type('Enum', (), enums))(INS=0,
+                                                          DEL=1,
+                                                          FSINS=2,
+                                                          FSDEL=3,
                                                           SNP=4,
                                                           UNKNOWN=5)
 """
 Enum for variation types:
 type.SNP, type.DEL, type.INS, type.FSDEL, type.FSINS, type.UNKNOWN
 """
+# IMPORTANT order for integration precedence (due to genome position sorting and implementation in var.__lq__, smaller
+# is of higher precedence) but as integration is from reverse: it is INS before DEL ... before SNP
 
 @total_ordering
 class MutationSyntax():
