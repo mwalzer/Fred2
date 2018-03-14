@@ -175,8 +175,8 @@ def _count_problematic_variants(vars):
             current_range[0] = var.genomePos
             current_range[1] = var.genomePos+len(v.ref)-1
         elif var.type in [VariationType.FSINS, VariationType.INS]:
-            current_range[0] = var.genomePos-1
-            current_range[1] = var.genomePos-1
+            current_range[0] = var.genomePos
+            current_range[1] = var.genomePos+len(v.obs)
         else:
             current_range[0] = var.genomePos
             current_range[1] = var.genomePos
@@ -190,11 +190,13 @@ def _count_problematic_variants(vars):
         current_range = get_range(v)
         current_planned_collision = v.get_metadata("planned_collisions")
         for v in reversed(v_tmp):
-            genome_pos = v.genomePos-1 if v.type in [VariationType.FSINS, VariationType.INS] else v.genomePos
-            if genome_pos <= current_range[1] \
+            if v.genomePos <= current_range[1] \
                     and current_planned_collision \
                     and v.get_metadata("planned_collisions") \
                     and current_planned_collision != v.get_metadata("planned_collisions"):  # avoid None != None
+                c += 1
+            elif v.genomePos <= current_range[1] \
+                    and (not v.get_metadata("planned_collisions") or not current_planned_collision):
                 c += 1
             else:
                 current_range = get_range(v)
@@ -303,35 +305,21 @@ def generate_peptides_from_variants(vars, length, dbadapter, id_type, peptides=N
 
         # TODO test for del < ins < ... < snv
         vs.sort(reverse=True)
+        if _count_problematic_variants(vs):
+            logging.warn("Intersecting variants found for Transcript %s"%tId)
+            continue
 
         generate_peptides_from_variants.transOff = 0
-        for start in xrange(0, len(tSeq) + 1 - 3 * length, 3):  # each window in codons size steps for peptide length
-            #suboptimal as it always has to traverse the combination tree for all frameshift mutations.
-            end = start + 3 * length
-            vars_fs_hom = filter(lambda x: (x.isHomozygous
-                                    or x.type in [VariationType.FSINS, VariationType.FSDEL])
-                                    and x.coding[tId].tranPos < start, vs)
-            # vars_in_window = filter(lambda x: start <= x.coding[tId].tranPos < end, vs)
-            # TODO what about overlaps? transpos < start < transpos+len
-            vars_in_window = filter(lambda x: start < x.coding[tId].tranPos + len(x.obs) and
-                                                      x.coding[tId].tranPos < end, vs)
-            if len(vars_in_window) > 0:
-                all_vars_in_window = list(set(vars_fs_hom+vars_in_window))
-                for ttId, varSeq, varCombDict in _generate_combinations(tId, all_vars_in_window, list(tSeq), {}, 0, strand == REVERS):
-                    if len(varCombDict) < 1:
-                        continue
-                    intersecting = _count_problematic_variants(varCombDict.values())  # planned collisions do not count against intersecting
-                    if intersecting:
-                        logging.warn("Intersecting variants ({c} intersections) found for Transcript {ttid} in window "
-                                     "{w} with variations including FS preceding the window.)".format(
-                                     ttid=ttId, w='[' + str(start) + ':' + str(end) + ']', c=intersecting))
-                        continue  # TODO test if this gets observed
-                    if experimental_design_filter and not any(v.experimentalDesign == experimental_design_filter for v in varCombDict.values()):
-                        # no specific variants in variants
-                        continue
-                    prots = chain(prots, generate_proteins_from_transcripts(Transcript("".join(varSeq), geneid, ttId,
-                                                                                       vars=varCombDict)))
-                    # TODO this IS! computationally more expensive than generating all prots and then get the peps
+        for tId, varSeq, varComb in _generate_combinations(tId, vs, list(tSeq), {}, 0, isReverse=strand == REVERS):
+            if experimental_design_filter and not any(
+                            v.experimentalDesign == experimental_design_filter for v in varComb.values()):
+                # no specific variants in variants
+                continue
+            prots = chain(prots, generate_proteins_from_transcripts(Transcript("".join(varSeq), geneid, tId,
+                                                                               vars=varComb)))
+            # generating in sliding windows is computationally more expensive as number of window -1 more transcripts
+            # get generated; also post generation filtering is necessary in any case
+
     peps = [p for p in generate_peptides_from_protein(prots, length, peptides=peptides)
              if any(p.get_variants_by_protein(prot) for prot in p.proteins.iterkeys())]
     if experimental_design_filter:
@@ -339,6 +327,7 @@ def generate_peptides_from_variants(vars, length, dbadapter, id_type, peptides=N
                                     in chain.from_iterable(p.get_variants_by_protein(prot)
                                     for prot in p.proteins.iterkeys()))]
     return peps
+    #TODO NB indel seem to be one off if using fred2 generator chain
 
 ################################################################################
 #        V A R I A N T S     = = >    T R A N S C R I P T S
