@@ -283,6 +283,20 @@ def generate_peptides_from_variants(vars, length, dbadapter, id_type, peptides=N
         else:
             yield tId + ":FRED2_%i"%transOff, seq, usedVs
 
+    def only_del_at_pos_zero(p, prot):
+        """
+        returns True if p for that prot has only variants position 0 and all variants are VariationType.DEL
+        :param p: peptide
+        :param prot: key by which the protein is known to the variant within the peptide (usually the transcript name 
+            plus FRED2_n indexer)
+        :return: bool
+        """
+        for pos in p.get_protein_positions(prot):
+            for pos, vars in p.get_variants_by_protein_position(prot, pos).iteritems():
+                if pos != 0 or not all(var.type in [VariationType.FSDEL, VariationType.DEL] for var in vars):
+                    return False
+        return True
+
     if not isinstance(dbadapter, ADBAdapter):
         raise TypeError("The given dbadapter is not of type ADBAdapter")
 
@@ -320,14 +334,19 @@ def generate_peptides_from_variants(vars, length, dbadapter, id_type, peptides=N
             # generating in sliding windows is computationally more expensive as number of window -1 more transcripts
             # get generated; also post generation filtering is necessary in any case
 
+    # filter generated peptides to have at least one variant and if it is a DEL, the var is not at pos 0
     peps = [p for p in generate_peptides_from_protein(prots, length, peptides=peptides)
-             if any(p.get_variants_by_protein(prot) for prot in p.proteins.iterkeys())]
+             if any(p.get_variants_by_protein(prot) and not only_del_at_pos_zero(p, prot)
+                    for prot in p.proteins.iterkeys())]
+
+
+    # TODO why not use only_variants=True in generate_peptides_from_protein ? ? ?
     if experimental_design_filter:
         peps = [p for p in peps if any(x.experimentalDesign == experimental_design_filter for x
                                     in chain.from_iterable(p.get_variants_by_protein(prot)
                                     for prot in p.proteins.iterkeys()))]
     return peps
-    #TODO NB indel seem to be one off if using fred2 generator chain
+    # TODO NB indel seem to be one off if using fred2 generator chain
 
 ################################################################################
 #        V A R I A N T S     = = >    T R A N S C R I P T S
