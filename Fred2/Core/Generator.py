@@ -335,12 +335,12 @@ def generate_peptides_from_variants(vars, length, dbadapter, id_type, peptides=N
             # get generated; also post generation filtering is necessary in any case
 
     # filter generated peptides to have at least one variant and if it is a DEL, the var is not at pos 0
-    peps = [p for p in generate_peptides_from_protein(prots, length, peptides=peptides)
+    # why not use just only_variants=True in generate_peptides_from_protein? - insufficient in filtering out these
+    # variant unspecific sequences
+    peps = [p for p in generate_peptides_from_protein(prots, length, peptides=peptides, only_variants=True)
              if any(p.get_variants_by_protein(prot) and not only_del_at_pos_zero(p, prot)
                     for prot in p.proteins.iterkeys())]
 
-
-    # TODO why not use only_variants=True in generate_peptides_from_protein ? ? ?
     if experimental_design_filter:
         peps = [p for p in peps if any(x.experimentalDesign == experimental_design_filter for x
                                     in chain.from_iterable(p.get_variants_by_protein(prot)
